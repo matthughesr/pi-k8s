@@ -1,0 +1,101 @@
+- name: Prepare Raspberry Pi for k0s
+  hosts: pi
+  become: true
+
+  tasks:
+    - name: Ensure apt cache is up to date
+      apt:
+        update_cache: yes
+      retries: 10
+      delay: 15
+      register: apt_update
+      until: apt_update is succeeded
+
+    - name: Install base packages
+      apt:
+        name:
+          - curl
+          - ca-certificates
+          - conntrack
+        state: present
+      retries: 10
+      delay: 15
+      register: apt_install
+      until: apt_install is succeeded
+
+    # Safe shutdown: give k0s time to stop cleanly before power-off
+    - name: Create systemd drop-in dirs for k0s
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - /etc/systemd/system/k0scontroller.service.d
+        - /etc/systemd/system/k0sworker.service.d
+
+    - name: Configure k0s for graceful shutdown
+      ansible.builtin.copy:
+        dest: "{{ item }}"
+        content: |
+          [Service]
+          TimeoutStopSec=180
+          KillMode=control-group
+        mode: "0644"
+      loop:
+        - /etc/systemd/system/k0scontroller.service.d/shutdown.conf
+        - /etc/systemd/system/k0sworker.service.d/shutdown.conf
+      notify: reload systemd
+
+  handlers:
+    - name: reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+# Metrics-server is bundled with k0s and enabled by default. On Raspberry Pi (and
+# many single-node clusters) kubelet uses self-signed certs, so we add
+# --kubelet-insecure-tls so metrics-server can scrape. After this, use:
+#   kubectl top nodes
+#   kubectl top pods -A
+- name: Configure metrics-server for k0s (CPU/memory metrics)
+  hosts: pi
+  become: true
+  vars:
+    k0s_kubeconfig: /var/lib/k0s/pki/admin.conf
+  tasks:
+    - name: Check if this node is a k0s controller (has cluster kubeconfig)
+      ansible.builtin.stat:
+        path: "{{ k0s_kubeconfig }}"
+      register: k0s_admin_conf
+
+    - name: Wait for metrics-server deployment to exist
+      ansible.builtin.command:
+        cmd: k0s kubectl get deployment metrics-server -n kube-system
+      environment:
+        KUBECONFIG: "{{ k0s_kubeconfig }}"
+      register: metrics_server_check
+      retries: 12
+      delay: 10
+      until: metrics_server_check.rc == 0
+      when: k0s_admin_conf.stat.exists
+
+    - name: Get current metrics-server container args
+      ansible.builtin.command:
+        cmd: k0s kubectl get deployment metrics-server -n kube-system -o jsonpath='{.spec.template.spec.containers[0].args}'
+      environment:
+        KUBECONFIG: "{{ k0s_kubeconfig }}"
+      register: metrics_server_args
+      changed_when: false
+      when: k0s_admin_conf.stat.exists
+
+    - name: Add --kubelet-insecure-tls to metrics-server (for Pi / self-signed kubelet)
+      ansible.builtin.command:
+        cmd: >
+          k0s kubectl patch deployment metrics-server -n kube-system
+          --type=json
+          -p=[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]
+      environment:
+        KUBECONFIG: "{{ k0s_kubeconfig }}"
+      when:
+        - k0s_admin_conf.stat.exists
+        - metrics_server_args.stdout is defined
+        - "'kubelet-insecure-tls' not in metrics_server_args.stdout"

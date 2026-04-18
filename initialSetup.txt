@@ -1,0 +1,94 @@
+1. Install Ubuntu Server 22.04 LTS (64-bit, arm64) for Raspberry Pi 4
+ - Setup username and password in pi imager before install
+ - Enable ssh
+ - Maybe disable wifi so easier to setup ethernet or select correct network
+
+2. Get ethernet working
+
+Create this file 
+
+pimatt@pi:/$ cat /etc/netplan/00-installer-config.yaml
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: no
+      addresses:
+        - 192.168.1.232/24
+      gateway4: 192.168.1.1
+      nameservers:
+        addresses: [8.8.8.8,8.8.4.4]
+pimatt@pi:/$
+
+- apply it sudo netplan apply
+- the static ip was already setup on the network
+
+
+3. Ssh into it from Mac ssh
+-ssh pimatt@192.168.1.232
+ssh pimatt@pi.local
+
+
+
+
+
+
+-----SETUP k0s--------
+https://docs.k0sproject.io/v1.25.7+k0s.0/raspberry-pi4/
+
+
+- Create swap file. 
+
+sudo bash -c 'fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && grep -qF "/swapfile" /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab && sysctl vm.swappiness=10 && grep -qF "vm.swappiness=10" /etc/sysctl.d/99-sysctl.conf || echo "vm.swappiness=10" >> /etc/sysctl.d/99-sysctl.conf'
+
+
+- Download k0s
+
+curl -sSLf https://get.k0s.sh | sudo sh
+
+
+- Get cluster up
+
+sudo k0s install controller --single
+sudo systemctl status k0scontroller.service
+
+- Start cluster
+sudo systemctl start k0scontroller.service
+systemctl status k0scontroller.service
+
+
+- Install kubectl. 
+sudo snap install kubectl --classic
+
+- Fix kubconfig
+sudo k0s kubeconfig admin > ~/.kube/config
+chmod 600 ~/.kube/config
+
+
+sudo systemctl stop k0scontroller && sudo shutdown -h now
+
+sudo poweroff
+
+
+
+how to change network settings
+sudo cat /etc/netplan/00-installer-config.yaml
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: yes
+      dhcp4-overrides:
+        route-metric: 100
+  wifis:
+    wlan0:
+      dhcp4: yes
+      dhcp4-overrides:
+        route-metric: 200
+      access-points:
+        "HostnameHere":
+          password: ""
+
+pimatt@pi:~$
+
+sudo netplan apply  
