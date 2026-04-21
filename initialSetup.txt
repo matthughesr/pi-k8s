@@ -20,7 +20,7 @@ network:
         addresses: [8.8.8.8,8.8.4.4]
 pimatt@pi:/$
 
-- apply it sudo netplan apply
+- apply it `sudo netplan apply`
 - the static ip was already setup on the network
 
 

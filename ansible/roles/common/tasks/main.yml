@@ -1,0 +1,19 @@
+- name: Refresh package list
+  apt:
+    update_cache: yes
+  retries: 10
+  delay: 15
+  register: apt_update
+  until: apt_update is succeeded
+
+- name: Install base packages
+  apt:
+    name:
+      - curl
+      - ca-certificates
+      - conntrack
+    state: present
+  retries: 10
+  delay: 15
+  register: apt_install
+  until: apt_install is succeeded
