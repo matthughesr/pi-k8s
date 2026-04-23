@@ -18,12 +18,42 @@
   register: apt_install
   until: apt_install is succeeded
 
+- name: Create netplan dir if not created
+  file:
+    path: /etc/netplan/
+    state: directory
+    mode: "0755"
+
+- name: Setup netplan file for ethernet and wifi
+  when: vault_host_name != ""
+  copy:
+    dest: /etc/netplan/00-installer-config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      network:
+        version: 2
+        ethernets:
+          eth0:
+            dhcp4: yes
+            dhcp4-overrides:
+              route-metric: 100
+        wifis:
+          wlan0:
+            dhcp4: yes
+            dhcp4-overrides:
+              route-metric: 200
+            access-points:
+              "{{ vault_host_name }}":
+                password: "{{ vault_wifi_password }}"
+
 # Create swap
-- name: Create swapfile and format it                                                                                                                                             
-  shell:                                                                                                                                                             
-    cmd: fallocate -l 2G /swapfile && mkswap /swapfile                                                                                                                                  
-    creates: /swapfile  # skip if already exists                                                                                                                       
-                                                                                                                                                                      
+- name: Create swapfile and format it
+  shell:
+    cmd: fallocate -l 2G /swapfile && mkswap /swapfile
+    creates: /swapfile  # skip if already exists
+
 - name: Set swapfile permissions
   file:
     path: /swapfile
@@ -33,7 +63,7 @@
   command:
     cmd: swapon /swapfile
   register: swapon_result
-  failed_when: swapon_result.rc != 0 and 'already' not in swapon_result.stderr and 'busy' not in swapon_result.stderr 
+  failed_when: swapon_result.rc != 0 and 'already' not in swapon_result.stderr and 'busy' not in swapon_result.stderr
   changed_when: swapon_result.rc == 0
 
 - name: Add swapfile to fstab
@@ -52,15 +82,15 @@
   lineinfile:
     path: /boot/firmware/cmdline.txt
     backrefs: yes
-    regexp: '^((?!.*cgroup_enable=memory).*)'                                                                                                                        
-    line: '\1 cgroup_enable=memory cgroup_memory=1'  
+    regexp: '^((?!.*cgroup_enable=memory).*)'
+    line: '\1 cgroup_enable=memory cgroup_memory=1'
 
-- name: Set GPU memory split                                                                                                                                           
-  lineinfile:                                                                                                                                                        
+- name: Set GPU memory split
+  lineinfile:
     path: /boot/firmware/config.txt
     regexp: '^gpu_mem='
-    line: 'gpu_mem=16'  
+    line: 'gpu_mem=16'
 
-- name: Reboot to apply kernel changes                                                                                                                                 
-  reboot:                                                                                                                                                            
+- name: Reboot to apply kernel changes
+  reboot:
     reboot_timeout: 120

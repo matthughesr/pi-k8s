@@ -1,24 +1,24 @@
-- name: Check if kubectl is installed                                                                                                                                  
-  stat:                                                                                                                                                                
-    path: /snap/bin/kubectl                                                                                                                                            
-  register: kubectl_bin                                                                                                                                              
+- name: Check if kubectl is installed
+  stat:
+    path: /snap/bin/kubectl
+  register: kubectl_bin
 
-- name: Install kubectl                                                                                                                                                
+- name: Install kubectl
   shell: snap install kubectl --classic
-  when: not kubectl_bin.stat.exists  
+  when: not kubectl_bin.stat.exists
 
 - name: Create .kube directory
-  file:                                                                                                                                                                
-    path: /home/pimatt/.kube                                                                                                                                         
-    state: directory                                                                                                                                                 
-    mode: "0755"                                                                                                                                                       
+  file:
+    path: /home/{{ pi_username }}/.kube
+    state: directory
+    mode: "0755"
 
-- name: Write kubeconfig                                                                                                                                               
-  shell: k0s kubeconfig admin > /home/pimatt/.kube/config                                                                                                            
-  args:                                                                                                                                                              
-    creates: /home/pimatt/.kube/config  # only runs if file doesn't exist                                                                                              
+- name: Write kubeconfig
+  shell: k0s kubeconfig admin > /home/{{ pi_username }}/.kube/config
+  args:
+    creates: /home/{{ pi_username }}/.kube/config  # only runs if file doesn't exist
 
-- name: Set kubeconfig permissions                                                                                                                                     
-  file:                                                                                                                                                              
-    path: /home/pimatt/.kube/config                                                                                                                                    
+- name: Set kubeconfig permissions
+  file:
+    path: /home/{{ pi_username }}/.kube/config
     mode: "0600"
