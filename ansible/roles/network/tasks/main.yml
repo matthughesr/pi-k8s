@@ -21,3 +21,4 @@
               "{{ vault_host_name }}":
                 password: "{{ vault_wifi_password }}"
   when: vault_host_name != ""
+  notify: apply netplan
