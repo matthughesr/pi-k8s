@@ -18,36 +18,6 @@
   register: apt_install
   until: apt_install is succeeded
 
-- name: Create netplan dir if not created
-  file:
-    path: /etc/netplan/
-    state: directory
-    mode: "0755"
-
-- name: Setup netplan file for ethernet and wifi
-  when: vault_host_name != ""
-  copy:
-    dest: /etc/netplan/00-installer-config.yaml
-    owner: root
-    group: root
-    mode: '0644'
-    content: |
-      network:
-        version: 2
-        ethernets:
-          eth0:
-            dhcp4: yes
-            dhcp4-overrides:
-              route-metric: 100
-        wifis:
-          wlan0:
-            dhcp4: yes
-            dhcp4-overrides:
-              route-metric: 200
-            access-points:
-              "{{ vault_host_name }}":
-                password: "{{ vault_wifi_password }}"
-
 # Create swap
 - name: Create swapfile and format it
   shell:

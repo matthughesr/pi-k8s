@@ -4,6 +4,11 @@
   hosts: pi
   become: true # run as root
   roles:
-    - common
-    - k0s
-    - kubectl
+    - role: common
+      tags: common
+    - role: network
+      tags: network
+    - role: k0s
+      tags: k0s
+    - role: kubectl
+      tags: kubectl
