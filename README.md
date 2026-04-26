@@ -36,6 +36,18 @@ Ansible playbook to provision a Raspberry Pi 4(4GB ram) with k0s
   - Write kubeconfig
 
 
+## Configuration
+
+Edit `ansible/inventories/pi/hosts.ini` with your values:
+
+```ini
+raspberrypi ansible_host=pi.local ansible_user=your_username pi_username=your_username
+```
+
+- `ansible_host` — hostname or IP of your Pi
+- `ansible_user` — SSH user
+- `pi_username` — user whose home directory will get the kubeconfig
+
 ## Secrets setup
 
 Secrets (WiFi SSID and password) are stored in an Ansible vault:

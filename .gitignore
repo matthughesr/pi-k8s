@@ -1,1 +1,2 @@
 piLogin.txt
+ansible/inventories/pi/group_vars/pi/vault.yml
