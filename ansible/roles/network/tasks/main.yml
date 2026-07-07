@@ -9,9 +9,15 @@
         version: 2
         ethernets:
           eth0:
-            dhcp4: yes
-            dhcp4-overrides:
-              route-metric: 100
+            dhcp4: no
+            addresses:
+              - "{{ ansible_default_ipv4.address }}/{{ ansible_default_ipv4.prefix }}"
+            routes:
+              - to: default
+                via: "{{ ansible_default_ipv4.gateway }}"
+            nameservers:
+              addresses:
+                - "{{ ansible_default_ipv4.gateway }}"
         wifis:
           wlan0:
             dhcp4: yes
