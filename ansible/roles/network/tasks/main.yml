@@ -9,20 +9,21 @@
         version: 2
         ethernets:
           eth0:
+            dhcp4: yes
+            dhcp4-overrides:
+              route-metric: 100
+        wifis:
+          wlan0:
             dhcp4: no
             addresses:
-              - "{{ ansible_default_ipv4.address }}/{{ ansible_default_ipv4.prefix }}"
+              - "{{ ansible_wlan0.ipv4.address }}/{{ ansible_wlan0.ipv4.prefix }}"
             routes:
               - to: default
                 via: "{{ ansible_default_ipv4.gateway }}"
+                metric: 200
             nameservers:
               addresses:
                 - "{{ ansible_default_ipv4.gateway }}"
-        wifis:
-          wlan0:
-            dhcp4: yes
-            dhcp4-overrides:
-              route-metric: 200
             access-points:
               "{{ vault_host_name }}":
                 password: "{{ vault_wifi_password }}"
