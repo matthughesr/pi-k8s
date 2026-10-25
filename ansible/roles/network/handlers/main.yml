@@ -1,3 +1,24 @@
+- name: reload sysctl
+  command:
+    cmd: sysctl --system
+
 - name: apply netplan
   command:
     cmd: netplan apply
+
+- name: enable wifi powersave off service
+  systemd:
+    name: wifi-powersave-off.service
+    daemon_reload: true
+    enabled: true
+    state: started
+
+- name: run wifi failover
+  command:
+    cmd: /usr/local/sbin/wifi-failover
+
+- name: enable wifi failover service
+  systemd:
+    name: wifi-failover.service
+    daemon_reload: true
+    enabled: true

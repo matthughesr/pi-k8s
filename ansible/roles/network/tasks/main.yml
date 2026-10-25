@@ -16,7 +16,7 @@
           wlan0:
             dhcp4: no
             addresses:
-              - "{{ ansible_wlan0.ipv4.address }}/{{ ansible_wlan0.ipv4.prefix }}"
+              - "{{ pi_lan_ip }}/{{ pi_lan_prefix }}"
             routes:
               - to: default
                 via: "{{ ansible_default_ipv4.gateway }}"
@@ -28,4 +28,119 @@
               "{{ vault_host_name }}":
                 password: "{{ vault_wifi_password }}"
   when: vault_host_name != ""
+  notify:
+    - apply netplan
+    - run wifi failover
+
+- name: Prevent cloud-init from re-writing netplan network config
+  copy:
+    dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      network: {config: disabled}
+
+- name: Remove stray cloud-init netplan wifi profile (duplicate SSID caused wlan0 instability)
+  file:
+    path: /etc/netplan/50-cloud-init.yaml
+    state: absent
   notify: apply netplan
+
+- name: Install iw (needed to control Wi-Fi power management)
+  apt:
+    name: iw
+    state: present
+    update_cache: true
+
+- name: Disable Wi-Fi power save on wlan0 now
+  command: iw dev wlan0 set power_save off
+  changed_when: false
+
+- name: Persist Wi-Fi power save disabled across reboots
+  copy:
+    dest: /etc/systemd/system/wifi-powersave-off.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Disable Wi-Fi power save on wlan0
+      Wants=network-online.target
+      After=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/sbin/iw dev wlan0 set power_save off
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: enable wifi powersave off service
+
+# eth0 and wlan0 share pi_lan_ip, so only one may be up at a time.
+# wlan0 is brought down whenever eth0 has carrier and back up when it loses it.
+- name: Install wifi failover script
+  copy:
+    dest: /usr/local/sbin/wifi-failover
+    owner: root
+    group: root
+    mode: '0755'
+    content: |
+      #!/bin/sh
+      # Ethernet plugged in -> wlan0 down; unplugged -> wlan0 up.
+      if [ "$(cat /sys/class/net/eth0/carrier 2>/dev/null)" = "1" ]; then
+        networkctl down wlan0
+      else
+        networkctl up wlan0
+      fi
+  notify: run wifi failover
+
+- name: Hook wifi failover into networkd-dispatcher eth0 state changes
+  copy:
+    dest: "/etc/networkd-dispatcher/{{ item }}/50-wifi-failover"
+    owner: root
+    group: root
+    mode: '0755'
+    content: |
+      #!/bin/sh
+      [ "$IFACE" = "eth0" ] || exit 0
+      exec /usr/local/sbin/wifi-failover
+  loop:
+    - routable.d
+    - carrier.d
+    - no-carrier.d
+    - off.d
+
+- name: Run wifi failover at boot
+  copy:
+    dest: /etc/systemd/system/wifi-failover.service
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Bring wlan0 down when eth0 is connected
+      After=systemd-networkd.service
+      Wants=systemd-networkd.service
+
+      [Service]
+      Type=oneshot
+      ExecStartPre=/bin/sleep 10
+      ExecStart=/usr/local/sbin/wifi-failover
+
+      [Install]
+      WantedBy=multi-user.target
+  notify: enable wifi failover service
+
+# Only answer ARP for an IP on the interface that owns it (covers the brief
+# overlap at boot before wlan0 is taken down).
+- name: Restrict ARP replies to the owning interface
+  copy:
+    dest: /etc/sysctl.d/99-arp.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      net.ipv4.conf.all.arp_ignore=1
+      net.ipv4.conf.all.arp_announce=2
+  notify: reload sysctl

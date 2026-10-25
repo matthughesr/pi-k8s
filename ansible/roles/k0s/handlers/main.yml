@@ -1,3 +1,8 @@
 - name: reload systemd
   systemd:
     daemon_reload: true
+
+- name: restart k0scontroller
+  systemd:
+    name: k0scontroller
+    state: restarted

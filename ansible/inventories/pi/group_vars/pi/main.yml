@@ -1,0 +1,4 @@
+# LAN IP shared by eth0 (DHCP reservation) and wlan0 (static).
+# Only one interface is up at a time, so k0s always sees the same address.
+pi_lan_ip: 192.168.1.9
+pi_lan_prefix: 24

@@ -36,9 +36,12 @@
         name: k0s
       spec:
         api:
+          address: "{{ pi_lan_ip }}"
           sans:
             - pi.local
             - "{{ ansible_host }}"
+            - "{{ pi_lan_ip }}"
+  notify: restart k0scontroller
 
 # Safe shutdown: give k0s time to stop cleanly before power-off
 - name: Create systemd drop-in dirs for k0s
