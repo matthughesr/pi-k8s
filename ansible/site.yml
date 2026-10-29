@@ -12,3 +12,5 @@
       tags: k0s
     - role: kubectl
       tags: kubectl
+    - role: tailscale
+      tags: tailscale

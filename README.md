@@ -59,6 +59,7 @@ Add the following to the vault:
 ```yaml
 vault_host_name: "YourWifiSSID"   # leave empty if ethernet only
 vault_wifi_password: "YourWifiPassword"
+vault_tailscale_authkey: "tskey-auth-..."   # optional: tagged, pre-approved key for first join (else log in interactively)
 ```
 
 Store your vault password in ~/.vault_pass and add to ansible/ansible.cfg:

@@ -1,0 +1,5 @@
+# Tailnet device name for the Pi host. "pi4" stays with the k8s Connector
+# until it's removed; change this afterwards if you want the old name back.
+tailscale_hostname: pi
+tailscale_advertise_routes:
+  - 192.168.1.0/24
